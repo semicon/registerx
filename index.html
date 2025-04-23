@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ระบบลงทะเบียน</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1e40af;
+            --secondary-color: #3b82f6;
+            --accent-color: #60a5fa;
+            --warm-bg: #f0f7ff;
+        }
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--warm-bg);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(30, 64, 175, 0.2);
+        }
+        
+        .error {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        /* Custom modal styling */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.7);
+        }
+        
+        /* Custom table styling */
+        .custom-table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .custom-table tr:nth-child(even) {
+            background-color: #dbeafe;
+        }
+        
+        .custom-table tr:hover {
+            background-color: #bfdbfe;
+        }
+        
+        /* Status badges */
+        .status-active {
+            background-color: #10b981;
+        }
+        
+        .status-pending {
+            background-color: #f59e0b;
+        }
+        .w-120{
+            width: 120px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 p-4">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="bg-white shadow-md py-4">
+            <div class="container mx-auto px-4 flex flex-col items-center justify-center">
+                <img src="https://waiwai-it.com/images/waiwaijaideelogo.png" alt="Waiwai Jaidee Logo" class="h-24 mb-2">
+                <h1 class="text-2xl md:text-3xl font-bold text-center text-blue-800">ระบบลงทะเบียนอบรม(ตัวอย่าง)</h1>
+            </div>
+        </header>
+        <!-- Registration Button -->
+        <div class="p-3 text-center">
+            <button id="register-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">ลงทะเบียน</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-4 rounded shadow">
+                <div class="text-sm text-gray-500">จำนวนผู้ลงทะเบียนทั้งหมด</div>
+                <div id="total-count" class="text-2xl font-bold">0</div>
+            </div>
+            <div class="bg-white p-4 rounded shadow">
+                <div class="text-sm text-gray-500">อนุมัติแล้ว</div>
+                <div id="active-count" class="text-2xl font-bold text-green-600">0</div>
+            </div>
+            <div class="bg-white p-4 rounded shadow">
+                <div class="text-sm text-gray-500">รอการตรวจสอบ</div>
+                <div id="pending-count" class="text-2xl font-bold text-yellow-500">0</div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white shadow rounded">
+                <thead class="bg-gray-200 text-gray-700 text-left">
+                    <tr>
+                        <th class="px-4 py-2">วันที่ลงทะเบียน</th>
+                        <th class="px-4 py-2">ชื่อ-นามสกุล</th>
+                        <th class="px-4 py-2">อีเมล</th>
+                        <th class="px-4 py-2">เบอร์โทร</th>
+                        <th class="px-4 py-2">บทบาท</th>
+                        <th class="px-4 py-2 w-120">สถานะ</th>
+                        <th class="px-4 py-2 text-center">การดำเนินการ</th>
+                    </tr>
+                </thead>
+                <tbody id="registrants-table-body">
+                    <!-- ข้อมูลผู้ลงทะเบียนจะถูกแสดงที่นี่ -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal ลงทะเบียน -->
+    <div id="registration-modal" class="fixed inset-0 bg-black bg-opacity-30 hidden flex items-center justify-center">
+        <div class="bg-white w-full max-w-md p-6 rounded shadow-lg relative">
+            <button id="close-modal" class="absolute top-2 right-2 text-gray-500 hover:text-black">&times;</button>
+            <h2 class="text-lg font-bold mb-4">ลงทะเบียน</h2>
+            <form id="registration-form">
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium">ชื่อ-นามสกุล</label>
+                    <input type="text" id="name" name="name" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium">อีเมล</label>
+                    <input type="email" id="email" name="email" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-4">
+                    <label for="phonenumber" class="block text-sm font-medium">เบอร์โทร</label>
+                    <input type="text" id="phonenumber" name="phonenumber" class="w-full border p-2 rounded">
+                </div>
+                <div class="mb-4">
+                    <label for="role" class="block text-sm font-medium">บทบาท</label>
+                    <select id="role" name="role" class="w-full border p-2 rounded">
+                        <option value="">-- เลือกบทบาท --</option>
+                        <option value="Admin">ผู้ดูแลระบบ</option>
+                        <option value="Teacher">ครู/อาจารย์</option>
+                        <option value="Student">นักเรียน/นักศึกษา</option>
+                        <option value="Other">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" id="cancel-btn" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">ยกเลิก</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal แสดงรายละเอียด -->
+    <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-30 hidden flex items-center justify-center">
+        <div class="bg-white w-full max-w-md p-6 rounded shadow-lg relative">
+            <button id="close-details-modal" class="absolute top-2 right-2 text-gray-500 hover:text-black">&times;</button>
+            <h2 class="text-lg font-bold mb-4">รายละเอียดผู้ลงทะเบียน</h2>
+            <div class="space-y-2">
+                <p><strong>วันที่ลงทะเบียน:</strong> <span id="detail-date"></span></p>
+                <p><strong>ชื่อ-นามสกุล:</strong> <span id="detail-name"></span></p>
+                <p><strong>อีเมล:</strong> <span id="detail-email"></span></p>
+                <p><strong>เบอร์โทร:</strong> <span id="detail-phone"></span></p>
+                <p><strong>บทบาท:</strong> <span id="detail-role"></span></p>
+                <p><strong>สถานะ:</strong> <span id="detail-status"></span></p>
+            </div>
+            <div class="mt-4 text-right">
+                <button id="close-details-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- แนบ JavaScript ด้านล่างสุด -->
+     <script>
+        $(document).ready(function() {
+            // API URL
+            const API_URL = "https://script.google.com/macros/s/AKfycbwvXvIPzJnURtCv35y9GYzt0xF9D8J_0rM2vpz0aTOeJg8cWRYjzuV25g9pTU7IJE4E/exec";
+            
+            // Load registrants data
+            loadRegistrants();
+            
+            // Registration form validation
+            $("#registration-form").validate({
+                rules: {
+                    name: "required",
+                    email: {
+                        required: true,
+                        email: true
+                    },
+                    phonenumber: {
+                        required: true,
+                        digits: true,
+                        minlength: 9,
+                        maxlength: 10
+                    },
+                    role: "required"
+                },
+                messages: {
+                    name: "กรุณากรอกชื่อ-นามสกุล",
+                    email: {
+                        required: "กรุณากรอกอีเมล",
+                        email: "กรุณากรอกอีเมลให้ถูกต้อง"
+                    },
+                    phonenumber: {
+                        required: "กรุณากรอกเบอร์โทรศัพท์",
+                        digits: "กรุณากรอกเฉพาะตัวเลข",
+                        minlength: "กรุณากรอกเบอร์โทรศัพท์อย่างน้อย 9 หลัก",
+                        maxlength: "กรุณากรอกเบอร์โทรศัพท์ไม่เกิน 10 หลัก"
+                    },
+                    role: "กรุณาเลือกบทบาท"
+                },
+                submitHandler: function(form) {
+                    submitRegistration();
+                    return false;
+                }
+            });
+            
+            // Show registration modal
+            $("#register-btn").click(function() {
+                $("#registration-modal").removeClass("hidden");
+            });
+            
+            // Close registration modal
+            $("#close-modal, #cancel-btn").click(function() {
+                $("#registration-modal").addClass("hidden");
+                $("#registration-form")[0].reset();
+                $("#registration-form").validate().resetForm();
+            });
+            
+            // Close details modal
+            $("#close-details-modal, #close-details-btn").click(function() {
+                $("#details-modal").addClass("hidden");
+            });
+            
+            // Function to load registrants
+            function loadRegistrants() {
+                $.LoadingOverlay("show", {
+                    image: "",
+                    fontawesome: "fa fa-spinner fa-spin",
+                    fontawesomeColor: "#1e40af"
+                });
+                
+                $.ajax({
+                    url: API_URL + "?action=findAllRegister",
+                    type: "GET",
+                    success: function(response) {
+                        if (typeof response === 'string') {
+                            try {
+                                response = JSON.parse(response);
+                            } catch (e) {
+                                console.error("Error parsing response:", e);
+                            }
+                        }
+                        
+                        if (response.success) {
+                            displayRegistrants(response.data);
+                            updateDashboard(response.data);
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'เกิดข้อผิดพลาด',
+                                text: response.message || 'ไม่สามารถโหลดข้อมูลได้',
+                                confirmButtonColor: '#1e40af'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+                            confirmButtonColor: '#1e40af'
+                        });
+                        console.error("Error:", error);
+                    },
+                    complete: function() {
+                        $.LoadingOverlay("hide");
+                    }
+                });
+            }
+            
+            // Function to display registrants in table
+            function displayRegistrants(data) {
+                const tableBody = $("#registrants-table-body");
+                tableBody.empty();
+                
+                if (data && data.length > 0) {
+                    data.forEach(function(item) {
+                        const registerDate = new Date(item.RegisterDate);
+                        const formattedDate = registerDate.toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        const statusClass = item.Status === 'Active' ? 'status-active' : 'status-pending';
+                        const statusText = item.Status === 'Active' ? 'อนุมัติแล้ว' : 'รอการตรวจสอบ';
+                        
+                        const row = `
+                            <tr class="border-b hover:bg-blue-50">
+                                <td class="px-4 py-3">${formattedDate}</td>
+                                <td class="px-4 py-3">${item.Name}</td>
+                                <td class="px-4 py-3">${item.email}</td>
+                                <td class="px-4 py-3">${item["Phone Number"] || ''}</td>
+                                <td class="px-4 py-3">${translateRole(item.Role)}</td>
+                                <td class="px-1 py-3">
+                                    <span class="px-2 py-1 rounded-full text-white text-xs ${statusClass}">
+                                        ${statusText}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <button class="view-details bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-1 px-3 rounded-lg text-sm" 
+                                            data-email="${item.email}">
+                                        ดู
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.append(row);
+                    });
+                    
+                    // Add event listener for view details buttons
+                    $(".view-details").click(function() {
+                        const email = $(this).data("email");
+                        showDetails(email, data);
+                    });
+                } else {
+                    tableBody.append(`
+                        <tr>
+                            <td colspan="7" class="px-4 py-3 text-center text-gray-500">ไม่พบข้อมูลผู้ลงทะเบียน</td>
+                        </tr>
+                    `);
+                }
+            }
+            
+            // Function to update dashboard counts
+            function updateDashboard(data) {
+                if (!data) return;
+                
+                const totalCount = data.length;
+                const activeCount = data.filter(item => item.Status === 'Active').length;
+                const pendingCount = data.filter(item => item.Status === 'Pending').length;
+                
+                $("#total-count").text(totalCount);
+                $("#active-count").text(activeCount);
+                $("#pending-count").text(pendingCount);
+            }
+            
+            // Function to show registrant details
+            function showDetails(email, data) {
+                const registrant = data.find(item => item.email === email);
+                
+                if (registrant) {
+                    const registerDate = new Date(registrant.RegisterDate);
+                    const formattedDate = registerDate.toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    $("#detail-date").text(formattedDate);
+                    $("#detail-name").text(registrant.Name);
+                    $("#detail-email").text(registrant.email);
+                    $("#detail-phone").text(registrant["Phone Number"] || '-');
+                    $("#detail-role").text(translateRole(registrant.Role));
+                    
+                    const statusText = registrant.Status === 'Active' ? 'อนุมัติแล้ว' : 'รอการตรวจสอบ';
+                    const statusClass = registrant.Status === 'Active' ? 'text-green-600' : 'text-yellow-600';
+                    $("#detail-status").html(`<span class="${statusClass} font-medium">${statusText}</span>`);
+                    
+                    $("#details-modal").removeClass("hidden");
+                }
+            }
+            
+            // Function to submit registration
+            function submitRegistration() {
+                const data = {
+                    action: "saveData",
+                    email: $("#email").val(),
+                    name: $("#name").val(),
+                    phonenumber: $("#phonenumber").val(),
+                    role: $("#role").val(),
+                    status: "Pending"
+                };
+                
+                $.LoadingOverlay("show", {
+                    image: "",
+                    fontawesome: "fa fa-spinner fa-spin",
+                    fontawesomeColor: "#1e40af"
+                });
+                
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.text())
+                .then(responseText => {
+                    try {
+                        const response = JSON.parse(responseText);
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'สำเร็จ!',
+                                text: 'ลงทะเบียนเรียบร้อยแล้ว',
+                                confirmButtonColor: '#1e40af'
+                            }).then(() => {
+                                $("#registration-modal").addClass("hidden");
+                                $("#registration-form")[0].reset();
+                                loadRegistrants();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'เกิดข้อผิดพลาด',
+                                text: response.message || 'ไม่สามารถลงทะเบียนได้',
+                                confirmButtonColor: '#1e40af'
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Error parsing response:", e, responseText);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: 'ไม่สามารถประมวลผลการตอบกลับจากเซิร์ฟเวอร์',
+                            confirmButtonColor: '#1e40af'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'เกิดข้อผิดพลาด',
+                        text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+                        confirmButtonColor: '#1e40af'
+                    });
+                })
+                .finally(() => {
+                    $.LoadingOverlay("hide");
+                });
+            }
+            
+            // Helper function to translate role to Thai
+            function translateRole(role) {
+                const roleMap = {
+                    'Admin': 'ผู้ดูแลระบบ',
+                    'Teacher': 'ครู/อาจารย์',
+                    'Student': 'นักเรียน/นักศึกษา',
+                    'Other': 'อื่นๆ'
+                };
+                
+                return roleMap[role] || role;
+            }
+        });
+    </script>
+</body>
+</html>
